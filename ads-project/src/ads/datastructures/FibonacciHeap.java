@@ -34,14 +34,14 @@ public class FibonacciHeap<Vertex> implements PriorityQueue<Vertex>{
 	}
 
 	@Override
-	public Vertex peek() {
+	public Vertex getMin() {
 		// TODO Auto-generated method stub
 		if (minNode == null || minNode.data == null) return null;
 		return minNode.data;
 	}
 
 	@Override
-	public Vertex poll() {
+	public Vertex removeMin() {
 		// TODO Auto-generated method stub
 		Node retNode = minNode;
 		Node child = minNode.child;
@@ -122,7 +122,7 @@ public class FibonacciHeap<Vertex> implements PriorityQueue<Vertex>{
 		
 		decreaseKey(n.data, (long) Double.NEGATIVE_INFINITY);
 		
-		poll();
+		removeMin();
 		
 	}
 	
@@ -291,14 +291,6 @@ public class FibonacciHeap<Vertex> implements PriorityQueue<Vertex>{
 		if (key.compareTo(minNode.data) < 0) {
 			minNode = x;
 		}
-	}
-
-	@Override
-	public void update(Vertex v, long value) {
-		// TODO Auto-generated method stub
-		
-		decreaseKey(v, value);
-		
 	}
 
 }

@@ -3,6 +3,9 @@ package ads.datastructures;
 import java.util.ArrayList;
 import java.util.List;
 
+/*
+ * Graph with adjacency list representation
+ */
 public class Graph {
 	
 	public Vertex[] vertices;
@@ -13,19 +16,15 @@ public class Graph {
 		return vertices == null? 0 :vertices.length;
 	}
 	
-	
-	public int getEdgeLength(Vertex a, Vertex b) {
-		
-		return 0;
-	}
-	
+	public class Vertex implements Comparable<Vertex>{
 
-	public class Vertex extends Node implements Comparable<Vertex>{
-
+		public int id;
+		public long minDistance;
 		public List<Vertex> adjList;
 		
 		public Vertex(int id, long minDistance) {
-			super(id, minDistance);
+			this.id = id;
+			this.minDistance = minDistance;
 			adjList = new ArrayList<Vertex>();
 			
 		}
@@ -44,11 +43,6 @@ public class Graph {
 		}
 		
 		public long getEdgeLength(Vertex dst) {
-			
-			/*for (int i=0; i<adjList.size(); i++) {
-				if (adjList.get(i).id == dst.id)
-					return 
-			}*/
 			
 			for (int e=0; e<edges.length; e++) {
 				if ((edges[e].from == this.id && edges[e].to == dst.id) || (edges[e].from == dst.id && edges[e].to == this.id))
@@ -78,6 +72,40 @@ public class Graph {
 		public Vertex getOtherVertex(Vertex curr) {
 			Vertex other = null;
 			return other;
+		}
+	}
+	
+	/*
+	 * checks if the graph is connected or not
+	 */
+	public boolean isConnected() {
+		
+		System.out.println("checking connectivity!!");
+		
+		if (this.vertices.length == 0) return false;
+		
+		boolean[] vis = new boolean[this.vertices.length];
+		
+		// run depth first search
+		dfs(this.vertices[0], vis);
+		
+		for (int i=0; i<vis.length; i++) {
+			if (vis[i] == false)
+				return false;
+		}
+		
+		return true;
+	}
+	
+	/*
+	 * depth first search
+	 */
+	public void dfs(Vertex v, boolean[] vis) {
+		vis[v.id] = true;
+		List<Vertex> neis = v.getNeighbors();
+		for (Vertex nei: neis) {
+			if (!vis[nei.id])
+				 dfs(nei, vis);
 		}
 	}
 	

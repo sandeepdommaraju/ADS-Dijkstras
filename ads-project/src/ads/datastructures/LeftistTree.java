@@ -3,7 +3,14 @@ package ads.datastructures;
 import java.util.HashMap;
 import java.util.Map;
 
-
+/**
+ * LeftistTree is a priority queue
+ * It is a min heap, the value of each node is smaller than its children
+ * It has a unique property, at each node, 
+ * 		the length of shortest external path traversing through left child 
+ * 			should be greater than or equal to 
+ * 		the length of the shortest external path traversed through right child
+ */
 public class LeftistTree<Vertex> implements PriorityQueue<Vertex>{
 	
 	Node minNode; //root
@@ -15,8 +22,8 @@ public class LeftistTree<Vertex> implements PriorityQueue<Vertex>{
 		Node parent;
 		Node left;
 		Node right;
-		Vertex data;
-		int s;
+		Vertex data;	// data contains the id of the vertex and the minimum distance from source
+		int s; 			// length of the shortest external path from this Node
 		
 		public Node(Vertex v) {
 			this.data = v;
@@ -28,16 +35,21 @@ public class LeftistTree<Vertex> implements PriorityQueue<Vertex>{
 		
 	}
 
-	@Override
-	public Vertex peek() {
+	/**
+	 * returns the vertex with minimum value
+	 */
+	public Vertex getMin() {
 		// TODO Auto-generated method stub
 		if (minNode == null || minNode.data == null) return null;
 		
 		return minNode.data;
 	}
 
-	@Override
-	public Vertex poll() {
+	/**
+	 * removes and returns the vertex with minimum value
+	 * performs meld
+	 */
+	public Vertex removeMin() {
 		// TODO Auto-generated method stub
 		
 		if (minNode == null || minNode.data == null) return null;
@@ -53,7 +65,9 @@ public class LeftistTree<Vertex> implements PriorityQueue<Vertex>{
 		return retData;
 	}
 
-	@Override
+	/**
+	 * adds the given vertex to the LeftistTree
+	 */
 	public void add(Vertex v) {
 		// TODO Auto-generated method stub
 		
@@ -74,21 +88,19 @@ public class LeftistTree<Vertex> implements PriorityQueue<Vertex>{
 		
 	}
 
-	@Override
+	/**
+	 * returns true if the LeftistTree is empty; returns false otherwise
+	 */
 	public boolean isEmpty() {
 		
 		return minNode == null;
 	}
 
-	//@Override
-	public void decreaseKey(Vertex v, long value) {
-		// TODO Auto-generated method stub
-		
-	}
 
-	@Override
-	public void update(Vertex v, long value) {
-		// TODO Auto-generated method stub
+	/**
+	 * changes the minimum distance of the given vertex to the value provided
+	 */
+	public void decreaseKey(Vertex v, long value) {
 		
 		remove(v);
 		
@@ -98,6 +110,12 @@ public class LeftistTree<Vertex> implements PriorityQueue<Vertex>{
 		
 	}
 	
+	/**
+	 * performs melding operation
+	 * @param n1
+	 * @param n2
+	 * @return
+	 */
 	private Node meld(Node n1, Node n2) {
 		
 		Node retNode;
@@ -142,48 +160,17 @@ public class LeftistTree<Vertex> implements PriorityQueue<Vertex>{
 		return p;
 	}
 	
+	/**
+	 * removes the given vertex from the LeftistTree and performs meld
+	 * @param v
+	 */
 	public void remove(Vertex v) {
 		
 		int key = ((ads.datastructures.Graph.Vertex) v).id;
 		if (key == ((ads.datastructures.Graph.Vertex) minNode.data).id) {
-			poll();
+			removeMin();
 		} else {
 			Node n = internalMap.get(key);
-			/*if (n.left != null)
-				n.left.parent = n.parent;
-			if (n.right != null)
-				n.right.parent = null;
-			
-			n.parent.right = n.left;
-			
-			Node curr = n.parent;
-			Node prev = n.left;
-			
-			while (curr != minNode) {
-				
-				int leftDegree = 0;
-				int rightDegree = 0;
-				
-				if (curr.left == prev) {
-					
-					leftDegree = prev.s;
-					rightDegree = curr.right == null ? 0 : curr.right.s;
-					
-				} else if (curr.right == prev) {
-					
-					rightDegree = prev.s;
-					leftDegree = curr.left == null ? 0 : curr.left.s;
-				}
-				
-				if (leftDegree == rightDegree) 
-					break;
-				
-				curr.s--;
-				prev = curr;
-				curr = curr.parent;
-			}
-			
-			minNode = meld(minNode, n.right);*/
 			
 			Node p = n.parent;
 			
