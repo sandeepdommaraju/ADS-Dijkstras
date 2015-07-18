@@ -3,13 +3,13 @@ package ads.algos;
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
 import ads.datastructures.FibonacciHeap;
 import ads.datastructures.Graph;
 import ads.datastructures.Graph.Edge;
+import ads.datastructures.Graph.Node;
 import ads.datastructures.Graph.Vertex;
 import ads.datastructures.LeftistTree;
 import ads.datastructures.PriorityQueue;
@@ -24,7 +24,7 @@ public class dijikstra {
 	
 	static Graph g;
 	static Vertex source;
-	static PriorityQueue<Vertex> pq = null;
+	static PriorityQueue pq = null;
 	static int N = 0;
 	static int src = 0;
 	static boolean[] visited = null;
@@ -43,6 +43,8 @@ public class dijikstra {
 		
 		source = g.vertices[src];
 		source.minDistance = 0;
+		
+		pq.setVertices(N);
 		
 		// push vertices into priority-queue
 		for (int i=0; i < N; i++) {
@@ -67,22 +69,21 @@ public class dijikstra {
 			Vertex currVertex = pq.removeMin();
 			visited[currVertex.id] = true;
 			
-			List<Vertex> neighbors = currVertex.getNeighbors();
+			List<Node> neighbors = currVertex.getNeighbors();
 			
-			for (Vertex nei: neighbors) {
+			for (Node nei: neighbors) {
 				
-				if (visited[nei.id]) {
+				if (visited[nei.to]) {
 					continue;
 				}
 				
-				long dist_from_curr = currVertex.minDistance + currVertex.getEdgeLength(nei);
+				long dist_from_curr = currVertex.minDistance + nei.weight; //currVertex.getEdgeLength(nei);
 				
 				//found a shorter distance; so update
-				if (dist_from_curr < nei.minDistance) {
+				if (dist_from_curr < g.vertices[nei.to].minDistance) {
 					
-					pq.decreaseKey(nei, dist_from_curr);
-					nei.minDistance = dist_from_curr;
-					g.vertices[nei.id]= nei;
+					pq.decreaseKey(g.vertices[nei.to], dist_from_curr);
+					g.vertices[nei.to].minDistance = dist_from_curr;
 					
 				}
 				
@@ -159,7 +160,7 @@ public class dijikstra {
 			dijikstra algo = new dijikstra();
 			
 			// run with LeftistTree
-			pq = new LeftistTree<Graph.Vertex>();
+			pq = new LeftistTree();
 			long startTime = System.currentTimeMillis();
 			algo.init();
 			algo.run();
@@ -167,7 +168,7 @@ public class dijikstra {
 			long endTime = System.currentTimeMillis();
 			System.out.println("LeftistTree Time: " + (endTime - startTime) +" milli secs");
 			
-			pq = new FibonacciHeap<Graph.Vertex>();
+			pq = new FibonacciHeap();
 			startTime = System.currentTimeMillis();
 			algo.init();
 			algo.run();
@@ -183,9 +184,9 @@ public class dijikstra {
 			dijikstra algo = new dijikstra();
 			
 			if (leftistTree) {
-				pq = new LeftistTree<Graph.Vertex>();
+				pq = new LeftistTree();
 			} else {
-				pq = new FibonacciHeap<Graph.Vertex>();
+				pq = new FibonacciHeap();
 			}
 			
 			long startTime = System.currentTimeMillis();
@@ -226,29 +227,37 @@ public class dijikstra {
 			g.vertices[v] = g.new Vertex(v, Long.MAX_VALUE);
 		}
 		
-		List<String> strList = new ArrayList<String>();
+		boolean[][] matrix = new boolean[N][N];
+		
+		Random r = new Random();
 		int e = 0;
 		while( e < m) {
-			Random r = new Random();
+			
 			int from = r.nextInt(n);
-			int to = r.nextInt(n);
-			//int to = 0;
-			/*while(true) {
+			int to = 0;
+			while(true) {
 				to = r.nextInt(n);
 				if (from!=to)
 					break;
-			}*/
+			}
 			int dist = r.nextInt(1000) + 1;
 			
-			String str = from + "*" + to;
-			if (strList.contains(str)){
+			if (matrix[from][to]) {
 				continue;
+			} else{
+				matrix[from][to] = true;
 			}
-			strList.add(str);
 			
-			g.edges[e++] = g.new Edge(from, to, dist);
-			g.vertices[from].adjList.add(g.vertices[to]);
-			g.vertices[to].adjList.add(g.vertices[from]);
+			//g.edges[e++] = g.new Edge(from, to, dist);
+			e++;
+			
+			Node fnode = g.new Node(from, dist);
+			Node tnode = g.new Node(to, dist);
+			g.vertices[from].adjList.add(tnode);
+			g.vertices[to].adjList.add(fnode);
+			
+			//g.vertices[from].adjList.add(g.vertices[to]);
+			//g.vertices[to].adjList.add(g.vertices[from]);
 
 		}
 	}
@@ -291,9 +300,12 @@ public class dijikstra {
 				int from 	= Integer.parseInt(input[0]);
 				int to 		= Integer.parseInt(input[1]);
 				int dist 	= Integer.parseInt(input[2]);
-				g.edges[e++] = g.new Edge(from, to, dist);
-				g.vertices[from].adjList.add(g.vertices[to]);
-				g.vertices[to].adjList.add(g.vertices[from]);
+				//g.edges[e++] = g.new Edge(from, to, dist);
+				e++;
+				Node fnode = g.new Node(from, dist);
+				Node tnode = g.new Node(to, dist);
+				g.vertices[from].adjList.add(tnode);
+				g.vertices[to].adjList.add(fnode);
 			}
 			
 			source = g.vertices[x];

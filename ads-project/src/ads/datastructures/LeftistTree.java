@@ -3,6 +3,8 @@ package ads.datastructures;
 import java.util.HashMap;
 import java.util.Map;
 
+import ads.datastructures.Graph.Vertex;
+
 /**
  * LeftistTree is a priority queue
  * It is a min heap, the value of each node is smaller than its children
@@ -11,11 +13,15 @@ import java.util.Map;
  * 			should be greater than or equal to 
  * 		the length of the shortest external path traversed through right child
  */
-public class LeftistTree<Vertex> implements PriorityQueue<Vertex>{
+public class LeftistTree implements PriorityQueue{
+	
+	static int N = 0;
+	
+	Node[] nodes;
 	
 	Node minNode; //root
 	
-	Map<Integer, Node> internalMap;
+	//Map<Integer, Node> internalMap;
 	
 	public class Node{
 		
@@ -33,6 +39,11 @@ public class LeftistTree<Vertex> implements PriorityQueue<Vertex>{
 			this.s = 1;
 		}
 		
+	}
+	
+	public void setVertices(int N){
+		this.N= N;
+		nodes = new Node[N];
 	}
 
 	/**
@@ -56,11 +67,12 @@ public class LeftistTree<Vertex> implements PriorityQueue<Vertex>{
 		
 		Vertex retData = minNode.data;
 		
-		int minIdx = ((ads.datastructures.Graph.Vertex) retData).id;
+		int minIdx = retData.id;
 		
 		minNode = meld(minNode.left, minNode.right);
 		
-		internalMap.remove(minIdx);
+		//internalMap.remove(minIdx);
+		nodes[minIdx] = null;
 		
 		return retData;
 	}
@@ -77,13 +89,15 @@ public class LeftistTree<Vertex> implements PriorityQueue<Vertex>{
 			
 			minNode = n;
 			
-			internalMap = new HashMap<Integer, Node>();
-			internalMap.put(((ads.datastructures.Graph.Vertex) v).id, minNode);
+			//internalMap = new HashMap<Integer, Node>();
+			//internalMap.put(((ads.datastructures.Graph.Vertex) v).id, minNode);
+			nodes[v.id] = minNode;
 			
 		} else {
 			
 			minNode = meld(minNode , n);
-			internalMap.put(((ads.datastructures.Graph.Vertex) v).id, n);
+			//internalMap.put(((ads.datastructures.Graph.Vertex) v).id, n);
+			nodes[v.id] = n;
 		}
 		
 	}
@@ -104,7 +118,7 @@ public class LeftistTree<Vertex> implements PriorityQueue<Vertex>{
 		
 		remove(v);
 		
-		((ads.datastructures.Graph.Vertex) v).setValue(value);
+		v.setValue(value);
 		
 		add(v);
 		
@@ -125,12 +139,13 @@ public class LeftistTree<Vertex> implements PriorityQueue<Vertex>{
 			return retNode;
 		}
 		
-		Comparable<? super Vertex> key = (Comparable<? super Vertex>) n1.data;
+		//Comparable<? super Vertex> key = (Comparable<? super Vertex>) n1.data;
+		long key = n1.data.minDistance;
 		
 		Node p;
 		Node m;
 		
-		if (key.compareTo(n2.data) < 0) {
+		if (key < n2.data.minDistance) {
 			
 			p = n1;
 			m = meld(n1.right, n2);
@@ -166,11 +181,12 @@ public class LeftistTree<Vertex> implements PriorityQueue<Vertex>{
 	 */
 	public void remove(Vertex v) {
 		
-		int key = ((ads.datastructures.Graph.Vertex) v).id;
-		if (key == ((ads.datastructures.Graph.Vertex) minNode.data).id) {
+		int key = v.id;
+		if (key == minNode.data.id) {
 			removeMin();
 		} else {
-			Node n = internalMap.get(key);
+			//Node n = internalMap.get(key);
+			Node n = nodes[key];
 			
 			Node p = n.parent;
 			
@@ -186,7 +202,8 @@ public class LeftistTree<Vertex> implements PriorityQueue<Vertex>{
 			Node m = meld(n.left, n.right);
 			minNode = meld(m, minNode);
 			
-			internalMap.remove(key);
+			//internalMap.remove(key);
+			nodes[key] = null;
 		}
 	}
 

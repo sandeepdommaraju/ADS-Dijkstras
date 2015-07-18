@@ -11,6 +11,16 @@ public class Graph {
 	public Vertex[] vertices;
 	public Edge[]   edges;
 	
+	public class Node{
+		public int weight;
+		public int to;
+		
+		public Node(int to, int weight){
+			this.to = to;
+			this.weight = weight;
+		}
+	}
+	
 	
 	public int getNumberOfVertices() {
 		return vertices == null? 0 :vertices.length;
@@ -20,12 +30,15 @@ public class Graph {
 
 		public int id;
 		public long minDistance;
-		public List<Vertex> adjList;
+		//public List<Vertex> adjList;
+		public List<Node> adjList;
+		
 		
 		public Vertex(int id, long minDistance) {
 			this.id = id;
 			this.minDistance = minDistance;
-			adjList = new ArrayList<Vertex>();
+			//adjList = new ArrayList<Vertex>();
+			adjList = new ArrayList<Node>();
 			
 		}
 		
@@ -38,7 +51,7 @@ public class Graph {
 			return this.minDistance - other.minDistance < 0? -1 : 1;
 		}
 		
-		public List<Vertex> getNeighbors() {
+		public List<Node> getNeighbors() {
 			return adjList;
 		}
 		
@@ -102,10 +115,10 @@ public class Graph {
 	 */
 	public void dfs(Vertex v, boolean[] vis) {
 		vis[v.id] = true;
-		List<Vertex> neis = v.getNeighbors();
-		for (Vertex nei: neis) {
-			if (!vis[nei.id])
-				 dfs(nei, vis);
+		List<Node> neis = v.getNeighbors();
+		for (Node nei: neis) {
+			if (!vis[nei.to])
+				 dfs(this.vertices[nei.to], vis);
 		}
 	}
 	

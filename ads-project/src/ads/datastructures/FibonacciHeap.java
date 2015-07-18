@@ -6,9 +6,13 @@ import java.util.Map.Entry;
 
 import ads.datastructures.Graph.Vertex;
 
-public class FibonacciHeap<Vertex> implements PriorityQueue<Vertex>{
+public class FibonacciHeap implements PriorityQueue{
+	
+	static int N;
 	
 	Map<Integer, Node> internalMap;
+	
+	Node[] nodes;
 	
 	Node minNode; //collection of min trees
 	
@@ -32,6 +36,11 @@ public class FibonacciHeap<Vertex> implements PriorityQueue<Vertex>{
 			this.childCut = false;
 		}
 	}
+	
+	public void setVertices(int N){
+		this.N= N;
+		nodes = new Node[N];
+	}
 
 	@Override
 	public Vertex getMin() {
@@ -52,7 +61,7 @@ public class FibonacciHeap<Vertex> implements PriorityQueue<Vertex>{
 			topLevelSiblings = 0;
 		}
 		
-		int minIdx = ((ads.datastructures.Graph.Vertex) minNode.data).id;
+		int minIdx = minNode.data.id;
 		
 		minNode.leftSibling.rightSibling = minNode.rightSibling;
 		minNode.rightSibling.leftSibling = minNode.leftSibling;
@@ -77,13 +86,13 @@ public class FibonacciHeap<Vertex> implements PriorityQueue<Vertex>{
 			minNode.rightSibling = minNode;
 			minNode.leftSibling = minNode;
 			internalMap = new HashMap<Integer, Node>();
-			internalMap.put(((ads.datastructures.Graph.Vertex) v).id, minNode);
+			internalMap.put(v.id, minNode);
 		} else {
 			Node x = new Node(v);
 			x.leftSibling = x;
 			x.rightSibling = x;
 			meld(minNode, x);
-			internalMap.put(((ads.datastructures.Graph.Vertex) v).id,  x);
+			internalMap.put(v.id,  x);
 		}
 		
 	}
@@ -98,21 +107,21 @@ public class FibonacciHeap<Vertex> implements PriorityQueue<Vertex>{
 	public void decreaseKey(Vertex e, long value) {
 		// TODO Auto-generated method stub
 		
-		Node x = internalMap.get(((ads.datastructures.Graph.Vertex) e).id);
+		Node x = internalMap.get(e.id);
 		
 		Node p = x.parent;
 		
-		((ads.datastructures.Graph.Vertex) x.data).setValue(value);
+		x.data.setValue(value);
 		
-		Comparable<? super Vertex> key = (Comparable<? super Vertex>) x.data;
+		long key = x.data.minDistance;
 				
-		if (p!=null && key.compareTo(p.data) < 0) {
+		if (p!=null && key < p.data.minDistance) {
 			
 			cut (x, p);
 			
 			cascadeCut(p);
 			
-		} else if (p == null && key.compareTo(minNode.data) < 0) {
+		} else if (p == null && key < minNode.data.minDistance) {
 			
 			minNode = x;
 		}
@@ -129,7 +138,7 @@ public class FibonacciHeap<Vertex> implements PriorityQueue<Vertex>{
 	private void meld(Node f1, Node f2) {
 		if (f1 == null || f2 == null) return;
 		
-		Comparable<? super Vertex> key = (Comparable<? super Vertex>) f1.data;
+		long key = f1.data.minDistance;
 		
 		/*if (f1.leftSibling == f1) {
 			f1.leftSibling = f2.leftSibling;
@@ -139,7 +148,7 @@ public class FibonacciHeap<Vertex> implements PriorityQueue<Vertex>{
 		f2.leftSibling = f1;
 		f1.rightSibling = f2;
 		
-		if (key.compareTo(f2.data) >=0) {
+		if (key >= f2.data.minDistance) {
 			minNode = f2;
 		} else {
 			minNode = f1;
@@ -178,8 +187,8 @@ public class FibonacciHeap<Vertex> implements PriorityQueue<Vertex>{
 					Node tmp = table.remove(degree);
 					Node p;
 					Node c;
-					Comparable<? super Vertex> key = (Comparable<? super Vertex>) tmp.data;
-					if (key.compareTo(curr.data) >=0) {
+					long key = tmp.data.minDistance;
+					if (key >= curr.data.minDistance) {
 						p = curr;
 						c = tmp;
 					} else {
@@ -224,18 +233,18 @@ public class FibonacciHeap<Vertex> implements PriorityQueue<Vertex>{
 				min = entry.getValue();
 				first = min;
 				prev = min;
-				minIdx = ((ads.datastructures.Graph.Vertex)min.data).id;
+				minIdx = min.data.id;
 				i++;
 			} else {
 				curr = entry.getValue();
 				prev = internalMap.get(minIdx);
-				Comparable<? super Vertex> key = (Comparable<? super Vertex>) curr.data;
-				if (key.compareTo(prev.data) >=0) {
+				long key = curr.data.minDistance;
+				if (key >= prev.data.minDistance) {
 					min = prev;
-					minIdx = ((ads.datastructures.Graph.Vertex)prev.data).id;
+					minIdx = prev.data.id;
 				} else {
 					min = curr;
-					minIdx = ((ads.datastructures.Graph.Vertex)curr.data).id;
+					minIdx = curr.data.id;
 				}
 				
 				curr.rightSibling.leftSibling = prev.leftSibling;
@@ -244,10 +253,6 @@ public class FibonacciHeap<Vertex> implements PriorityQueue<Vertex>{
 				curr.rightSibling = prev;
 			}
 		}
-		/*if (curr!=null)
-			curr.rightSibling = first;
-		if (first!=null)
-			first.leftSibling = curr;*/
 		minNode = internalMap.get(minIdx);
 	}
 	
@@ -286,9 +291,9 @@ public class FibonacciHeap<Vertex> implements PriorityQueue<Vertex>{
 		x.childCut = false;
 		x.parent = null;
 		
-		Comparable<? super Vertex> key = (Comparable<? super Vertex>) x.data;
+		long key = x.data.minDistance;
 		
-		if (key.compareTo(minNode.data) < 0) {
+		if (key < minNode.data.minDistance) {
 			minNode = x;
 		}
 	}

@@ -1,12 +1,15 @@
 package ads.datastructures;
 
+import ads.datastructures.Graph.Vertex;
+
 /**
  * Priority queue interface
  * There can be many implementations like minHeap, LeftisTree, FibonacciHeap, etc
  * @author Sandeep
  */
-public interface PriorityQueue<Vertex> {
+public interface PriorityQueue {
 	
+	public void setVertices(int N);
 	/**
 	 * 
 	 * @return the vertex with minimum value, without removing it from the priority queue
