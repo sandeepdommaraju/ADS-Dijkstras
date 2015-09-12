@@ -3,27 +3,78 @@ import scala.concurrent.duration._
 import java.security.MessageDigest
 import scala.annotation.tailrec
 
-case class setZeroesAndWorkers(zs: Int, ws: Int)
-case class setZeroes(z: Int)
+case class setParams(zeroes: Int, chunk: Int, limit: Int)
 case class isValid(str: String)
 case class Mail(message: String)
+case object StartWorkers
+case object Done
+case object Stop
+case object StopAck
+case class BitCoin(inputStr: String, outputStr: String)
+
 
 /**
  * Server:  1. create workers
  *          2. if no workers are present, act as worker !! --> verify
  *          3. if we have found desired number of bitcoins or if TLE terminate
  */
-class ServerActor extends Actor {
-    var k = 0 //number of leading zeroes required in the hash
-    var w = 0 //number of workers
+class ServerActor(zeroes: Int, workers: Int, chunk: Int, limit: Int) extends Actor {
+    
+    var workerPool = new Array[ActorRef](workers)
+    var bitcoins = 0
+    var reqcoins = 5
+    var strcounter = 0
+    var results: Map[String, String] = Map()
+    var stopcount = 0
+    var actors = workers
     
     def receive = {
         
-        case setZeroesAndWorkers(zs, ws) => k = zs
-                                            w = ws
-        case "getparams" => println("zeroes: " + k + " workers: "+ w)
+        case "getparams" => println("zeroes: " + zeroes + " workers: "+ workers + " chunk: "+ chunk + " limit: "+limit)
+        case StartWorkers => startWorkers()
+        case "Found" => bitcoins += 1
+                        println("#bitcoins: "+bitcoins)
+                      if (bitcoins == reqcoins) sender ! stopSystem()
+        case Done => if (strcounter < limit){
+                                sender ! "mine"
+                                strcounter += chunk
+                            }else{
+                                sender ! "stop"
+                            }
+        //case "stopWorkers" => stopWorkers()
+        case BitCoin(inputstr, hashstr) => results += (inputstr -> hashstr)
+                                            println(inputstr + "\t" + hashstr)
+        case StopAck => stopcount += 1
+                        if (stopcount == workers){
+                            context.system.shutdown
+                        }
+        case "remoteworker" => println("TODO remoteworker")
         case _ => println("default case!!")
     }
+    
+    def startWorkers() = {
+        val i = 1
+        for (i <- 1 to workers){
+            workerPool(i-1) = context.actorOf(Props[WorkerActor], name="Worker"+i)
+        }
+        for (i <- 1 to workers){
+            workerPool(i-1) ! setParams(zeroes, chunk, limit)
+            workerPool(i-1) ! "mine"
+        }
+    }
+    
+    def stopAllWorkers() = {
+        val i = 1
+        for (i <- 1 to workers){
+            workerPool(i-1) ! "stop"
+        }
+    }
+    
+    def stopSystem() = {
+        stopAllWorkers()
+        context.system.shutdown
+    }
+    
 }
 
 /**
@@ -32,13 +83,19 @@ class ServerActor extends Actor {
  *          3. verify if the hashed string has 'k' leading zeroes -> we found bitcoin
  */
 class WorkerActor extends Actor {
-    var k = 0
+    var zeroes = 0
+    var chunk = 0
+    var limit = 0
     
     def receive = {
         
-        case setZeroes(z) => k = z
-        case "mine" =>  while (!isValidHash(sha256("sandom;"+randomStringGenerator()))){ println("hash miss")}
-                        println("found bitcoin")
+        case setParams(z, c, l) =>  zeroes = z
+                                    chunk = c
+                                    limit = l
+        case "mine" =>  mine(sender)
+                        sender ! Done
+        case "stop" =>  sender ! StopAck
+                        context.stop(self)
         case _ => println("default case!!")
     }
     
@@ -48,9 +105,21 @@ class WorkerActor extends Actor {
     
     }
     
+    def mine(sender: ActorRef) = {
+        var randstr = randomStringGenerator()
+        for (i <- 1 to chunk) {
+            var hash = sha256("sandom;"+randstr)
+            println(hash)
+            if(isValidHash(hash)){
+                println("found bitcoin")
+                sender ! BitCoin("sandom;"+randstr, hash.getOrElse(""))
+            }
+        }
+    }
+    
     
     def sha256 (s: String): Option[String] = {
-        println("hash this: "+s)
+        //println("hash this: "+s)
         val msg = MessageDigest.getInstance("SHA-256").digest(s.getBytes)
         val hash: Option[String] = Option(msg).map(Hex.valueOf)
         return hash
@@ -58,10 +127,11 @@ class WorkerActor extends Actor {
     
     def isValidHash(hash: Option[String]): Boolean = {
         val str: String = hash.getOrElse("") //to convert Option[String] to String
-        println("isvalid check: "+str)
-        for (i <- 1 to k){
+        //println("isvalid check: "+str)
+        for (i <- 1 to zeroes){
             if (str.charAt(i-1)!='0') return false
         }
+        println("bitcoin: " + str)
         return true
     }
     
@@ -73,59 +143,34 @@ class WorkerActor extends Actor {
           val randomNum = util.Random.nextInt(chars.length)
           sb.append(chars(randomNum))
         }
-        println("randomStr: " + sb.toString())
+        //println("randomStr: " + sb.toString())
         return sb.toString()
     }
 }
 
 object Miner extends App {
     
-    // main system
-    val system = ActorSystem("MinerSystem");
+        val chunk = 10000 //worker chunk size
+        val limit = 1000000 //threshold
+        val zeroes = 4;  //leading zeroes
+        val workers = 10; //workers
     
-    // create sever actor
-    val serverActor = system.actorOf(Props[ServerActor], name="server")
-    
-    // TODO: remove: workers have to be created inside server
-    val workerActor = system.actorOf(Props[WorkerActor], name="worker")
-    
-    val zs = 2;  //leading zeroes
-    
-    val ws = 10; //workers
-    
-    serverActor ! "gg"
-    
-    serverActor ! setZeroesAndWorkers(zs, ws)
-    
-    serverActor ! "getparams"
-    
-    //TODO: clean
-    val inbox = Inbox.create(system)
-    inbox.send(workerActor, setZeroes(zs))
-    
-    inbox.send(workerActor, "mine")
-    val v1 = inbox.receive(2.seconds)
-    println(v1)
-    
-    //TODO: clean
-    /*serverActor ! "manage"
-    serverActor ! "numofzeroes"
-    serverActor ! setZeroes(4)
-    serverActor ! "numofzeroes"
-    serverActor ! "numofworkers"
-    serverActor ! setWorkers(10)
-    serverActor ! "numofworkers"*/
-    
-    //val greetPrinter = system.actorOf(Props[GreetPrinter])
-    // after zero seconds, send a Greet message every second to the greeter with a sender of the greetPrinter
-    //system.scheduler.schedule(0.seconds, 1.second, workerActor, "mine")(system.dispatcher, greetPrinter)
-  
+        // main system
+        val system = ActorSystem("MinerSystem");
+        
+        // create sever actor
+        val serverActor = system.actorOf(Props(new ServerActor(zeroes, workers, chunk, limit)), name="server")
+        
+        // TODO: remove: workers have to be created inside server
+        val workerActor = system.actorOf(Props[WorkerActor], name="worker")
+        
+        serverActor ! "getparams"
+        
+        serverActor ! StartWorkers
+        
+        //TODO: clean
+        /*val inbox = Inbox.create(system)
+        inbox.send(workerActor, setZeroes(zs))
+        
+        inbox.send(workerActor, "mine")*/
 }
-
-    // prints a greeting
-    class GreetPrinter extends Actor {
-      def receive = {
-        case Mail(message) => println(message)
-      }
-    }
-    
