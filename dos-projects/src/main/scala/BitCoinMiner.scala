@@ -7,13 +7,14 @@ case class setParams(zeroes: Int, chunk: Int, limit: Int)
 case class isValid(str: String)
 case class Mail(message: String)
 case object StartWorkers
+case object StartRemoteWorker
 case object Done
 case object Stop
 case object StopAck
 case class BitCoin(inputStr: String, outputStr: String)
 case class Mine(str: String)
 
-object StringIncrementer {
+object StringGen {
     def next(s: String): String = {
       val length = s.length
       var c = s.charAt(length - 1)
@@ -52,23 +53,27 @@ class ServerActor(zeroes: Int, workers: Int, chunk: Int, limit: Int) extends Act
         
         case "getparams" => println("zeroes: " + zeroes + " workers: "+ workers + " chunk: "+ chunk + " limit: "+limit)
         case StartWorkers => startWorkers()
-        case "Found" => bitcoins += 1
-                        println("#bitcoins: "+bitcoins)
-                      if (bitcoins == reqcoins) sender ! stopSystem()
+        case StartRemoteWorker => if (strcounter < limit) {
+                                    actors += 1
+                                    sender ! Mine(currstr)
+                                    currstr = StringGen.Increment(currstr, chunk)
+                                    strcounter += chunk
+                                  } else{
+                                      sender ! Stop
+                                  }
         case Done => if (strcounter < limit){
                                 sender ! Mine(currstr)
+                                currstr = StringGen.Increment(currstr, chunk)
                                 strcounter += chunk
                             }else{
-                                sender ! "stop"
+                                sender ! Stop
                             }
-        //case "stopWorkers" => stopWorkers()
         case BitCoin(inputstr, hashstr) => results += (inputstr -> hashstr)
                                             println(inputstr + "\t" + hashstr)
         case StopAck => stopcount += 1
                         if (stopcount == workers){
                             context.system.shutdown
                         }
-        case "remoteworker" => println("TODO remoteworker")
         case _ => println("default case!!")
     }
     
@@ -80,21 +85,9 @@ class ServerActor(zeroes: Int, workers: Int, chunk: Int, limit: Int) extends Act
         for (i <- 1 to workers){
             workerPool(i-1) ! setParams(zeroes, chunk, limit)
             workerPool(i-1) ! Mine(currstr)
-            currstr = StringIncrementer.Increment(currstr, chunk)
+            currstr = StringGen.Increment(currstr, chunk)
             strcounter += chunk
         }
-    }
-    
-    def stopAllWorkers() = {
-        val i = 1
-        for (i <- 1 to workers){
-            workerPool(i-1) ! "stop"
-        }
-    }
-    
-    def stopSystem() = {
-        stopAllWorkers()
-        context.system.shutdown
     }
     
 }
@@ -116,8 +109,10 @@ class WorkerActor extends Actor {
                                     chunk = c
                                     limit = l
         case Mine(str) =>  mine(str, sender)
+                        //println("Done: " + workername)
                         sender ! Done
-        case "stop" =>  sender ! StopAck
+        case Stop =>  //println("Stop: "+ workername)
+                        sender ! StopAck
                         context.stop(self)
         case _ => println("default case!!")
     }
@@ -131,13 +126,12 @@ class WorkerActor extends Actor {
     def mine(str: String, sender: ActorRef) = {
         var randstr = str //randomStringGenerator()
         for (i <- 1 to chunk) {
-            var hash = sha256("sandom;"+str)
-            println(workername +" " +hash)
+            var inputstr = "sandom;"+randstr
+            var hash = sha256(inputstr)
             if(isValidHash(hash)){
-                println("found bitcoin")
-                sender ! BitCoin("sandom;"+randstr, hash.getOrElse(""))
+                sender ! BitCoin(workername + " " + inputstr, hash.getOrElse(""))
             }
-            randstr = StringIncrementer.next(randstr)
+            randstr = StringGen.next(randstr)
         }
     }
     
@@ -153,9 +147,11 @@ class WorkerActor extends Actor {
         val str: String = hash.getOrElse("") //to convert Option[String] to String
         //println("isvalid check: "+str)
         for (i <- 1 to zeroes){
-            if (str.charAt(i-1)!='0') return false
+            if (str.charAt(i-1)!='0') {
+                return false
+            }
         }
-        println("bitcoin: " + str)
+        //println("bitcoin: " + str)
         return true
     }
     
@@ -172,10 +168,11 @@ class WorkerActor extends Actor {
     }
 }
 
+
 object Miner extends App {
     
-        val chunk = 5 //worker chunk size
-        val limit = 100 //threshold
+        val chunk = 2 //worker chunk size
+        val limit = 25 //threshold
         val zeroes = 1;  //leading zeroes
         val workers = 10; //workers
     
