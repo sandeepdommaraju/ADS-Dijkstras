@@ -11,6 +11,25 @@ case object Done
 case object Stop
 case object StopAck
 case class BitCoin(inputStr: String, outputStr: String)
+case class Mine(str: String)
+
+object StringIncrementer {
+    def next(s: String): String = {
+      val length = s.length
+      var c = s.charAt(length - 1)
+      if (c == 'z' || c == 'Z') return if (length > 1) next(s.substring(0, length - 1)) + 'A' else "AA"
+      s.substring(0, length - 1) + (c.toInt + 1).toChar
+    }
+
+    def Increment(s: String, n: Int): String = {
+      var i = 0
+      var temp = s
+      for (i <- 1 to n) {
+        temp = next(temp)
+      }
+      return temp
+    }
+  }
 
 
 /**
@@ -27,6 +46,7 @@ class ServerActor(zeroes: Int, workers: Int, chunk: Int, limit: Int) extends Act
     var results: Map[String, String] = Map()
     var stopcount = 0
     var actors = workers
+    var currstr = "A"
     
     def receive = {
         
@@ -36,7 +56,7 @@ class ServerActor(zeroes: Int, workers: Int, chunk: Int, limit: Int) extends Act
                         println("#bitcoins: "+bitcoins)
                       if (bitcoins == reqcoins) sender ! stopSystem()
         case Done => if (strcounter < limit){
-                                sender ! "mine"
+                                sender ! Mine(currstr)
                                 strcounter += chunk
                             }else{
                                 sender ! "stop"
@@ -59,7 +79,9 @@ class ServerActor(zeroes: Int, workers: Int, chunk: Int, limit: Int) extends Act
         }
         for (i <- 1 to workers){
             workerPool(i-1) ! setParams(zeroes, chunk, limit)
-            workerPool(i-1) ! "mine"
+            workerPool(i-1) ! Mine(currstr)
+            currstr = StringIncrementer.Increment(currstr, chunk)
+            strcounter += chunk
         }
     }
     
@@ -86,13 +108,14 @@ class WorkerActor extends Actor {
     var zeroes = 0
     var chunk = 0
     var limit = 0
+    var workername = self.path.name
     
     def receive = {
         
         case setParams(z, c, l) =>  zeroes = z
                                     chunk = c
                                     limit = l
-        case "mine" =>  mine(sender)
+        case Mine(str) =>  mine(str, sender)
                         sender ! Done
         case "stop" =>  sender ! StopAck
                         context.stop(self)
@@ -105,15 +128,16 @@ class WorkerActor extends Actor {
     
     }
     
-    def mine(sender: ActorRef) = {
-        var randstr = randomStringGenerator()
+    def mine(str: String, sender: ActorRef) = {
+        var randstr = str //randomStringGenerator()
         for (i <- 1 to chunk) {
-            var hash = sha256("sandom;"+randstr)
-            println(hash)
+            var hash = sha256("sandom;"+str)
+            println(workername +" " +hash)
             if(isValidHash(hash)){
                 println("found bitcoin")
                 sender ! BitCoin("sandom;"+randstr, hash.getOrElse(""))
             }
+            randstr = StringIncrementer.next(randstr)
         }
     }
     
@@ -150,9 +174,9 @@ class WorkerActor extends Actor {
 
 object Miner extends App {
     
-        val chunk = 10000 //worker chunk size
-        val limit = 1000000 //threshold
-        val zeroes = 4;  //leading zeroes
+        val chunk = 5 //worker chunk size
+        val limit = 100 //threshold
+        val zeroes = 1;  //leading zeroes
         val workers = 10; //workers
     
         // main system
