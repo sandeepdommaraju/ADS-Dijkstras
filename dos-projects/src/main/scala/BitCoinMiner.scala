@@ -2,6 +2,12 @@ import akka.actor.{ ActorRef, ActorSystem, Props, Actor, Inbox }
 import scala.concurrent.duration._
 import java.security.MessageDigest
 import scala.annotation.tailrec
+import akka.actor.Terminated
+
+import akka.event.LoggingReceive
+import scala.util.control.Breaks
+import com.typesafe.config.ConfigFactory
+import scala.collection.mutable.ArrayBuffer
 
 case class setParams(zeroes: Int, chunk: Int, limit: Int)
 case class isValid(str: String)
@@ -42,7 +48,6 @@ class ServerActor(zeroes: Int, workers: Int, chunk: Int, limit: Int) extends Act
     
     var workerPool = new Array[ActorRef](workers)
     var bitcoins = 0
-    var reqcoins = 5
     var strcounter = 0
     var results: Map[String, String] = Map()
     var stopcount = 0
@@ -128,6 +133,7 @@ class WorkerActor extends Actor {
         for (i <- 1 to chunk) {
             var inputstr = "sandom;"+randstr
             var hash = sha256(inputstr)
+			//println(hash.getOrElse(""))
             if(isValidHash(hash)){
                 sender ! BitCoin(workername + " " + inputstr, hash.getOrElse(""))
             }
@@ -145,13 +151,11 @@ class WorkerActor extends Actor {
     
     def isValidHash(hash: Option[String]): Boolean = {
         val str: String = hash.getOrElse("") //to convert Option[String] to String
-        //println("isvalid check: "+str)
         for (i <- 1 to zeroes){
             if (str.charAt(i-1)!='0') {
                 return false
             }
         }
-        //println("bitcoin: " + str)
         return true
     }
     
@@ -169,29 +173,85 @@ class WorkerActor extends Actor {
 }
 
 
-object Miner extends App {
+object Miner {
     
-        val chunk = 2 //worker chunk size
-        val limit = 25 //threshold
-        val zeroes = 1;  //leading zeroes
+    
+    def main(args: Array[String]) {
+        val chunk = 1000 //worker chunk size
+        val limit = 100000 //threshold
+        var zeroes = 1;  //leading zeroes
         val workers = 10; //workers
+        var ipAddress = ""
+        
+        // exit if argument not passed as command line param
+        if (args.length < 1) {
+          println("Invalid no of args")
+          System.exit(1)
+        } else if (args.length == 1) {
+            args(0) match {
+                case s: String if s.contains(".") =>
+                        ipAddress = s
+                        val remoteSystem = ActorSystem("RemoteMinerSystem", ConfigFactory.load(ConfigFactory.parseString("""
+                      akka {
+                    actor {
+                      provider = "akka.remote.RemoteActorRefProvider"
+                    }
+                    remote {
+                      enabled-transports = ["akka.remote.netty.tcp"]
+                      netty.tcp {
+                        port = 13000
+                      }
+                   }
+                  }""")))
+                  
+                  val worker = remoteSystem.actorOf(Props(new WorkerActor()), name = "Worker")
+                  val watcher = remoteSystem.actorOf(Props(new Watcher()), name = "Watcher")
+
+                  watcher ! Watcher.WatchMe(worker)
+
+                  val master = remoteSystem.actorSelection("akka.tcp://MinerSystem@" + ipAddress + ":12000/user/ServerActor")
+                  master.tell(StartRemoteWorker, worker)
+                  
+                 case s: String =>
+                      zeroes = s.toInt
+                      println("Num of zeroes:" + zeroes)
+            
+                      val system = ActorSystem.create("MinerSystem", ConfigFactory.load(ConfigFactory.parseString("""{ 
+                        "akka" : { "actor" : { "provider" : "akka.remote.RemoteActorRefProvider" }, 
+                        "remote" : { "enabled-transports" : [ "akka.remote.netty.tcp" ], "netty" : { "tcp" : { "port" : 12000 } } } } } """)))
+                      
+                        val serverActor = system.actorOf(Props(new ServerActor(zeroes, workers, chunk, limit)), name="server")
+                        serverActor ! "getparams"        
+                        serverActor ! StartWorkers
+
+                 case _ => System.exit(1)
+            }
+        }
+        
+        object Watcher {
+            // Used by others to register an Actor for watching
+            case class WatchMe(ref: ActorRef)
+        }
+
+        class Watcher extends Actor {
+            import Watcher._
     
-        // main system
-        val system = ActorSystem("MinerSystem");
+            // Keep track of what we're watching
+            val watched = ArrayBuffer.empty[ActorRef]
+    
+            // Watch and check for termination
+            final def receive = {
+                case WatchMe(ref) =>
+                    context.watch(ref)
+                    watched += ref
+                case Terminated(ref) =>
+                    watched -= ref
+                    if (watched.isEmpty) {
+                        context.system.shutdown
+                    }
+            }
+        }
         
-        // create sever actor
-        val serverActor = system.actorOf(Props(new ServerActor(zeroes, workers, chunk, limit)), name="server")
+    }
         
-        // TODO: remove: workers have to be created inside server
-        val workerActor = system.actorOf(Props[WorkerActor], name="worker")
-        
-        serverActor ! "getparams"
-        
-        serverActor ! StartWorkers
-        
-        //TODO: clean
-        /*val inbox = Inbox.create(system)
-        inbox.send(workerActor, setZeroes(zs))
-        
-        inbox.send(workerActor, "mine")*/
 }
