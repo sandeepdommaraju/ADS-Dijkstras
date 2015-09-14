@@ -135,7 +135,7 @@ class WorkerActor extends Actor {
             var hash = sha256(inputstr)
 			//println(hash.getOrElse(""))
             if(isValidHash(hash)){
-                sender ! BitCoin(workername + " " + inputstr, hash.getOrElse(""))
+                sender ! BitCoin(inputstr, hash.getOrElse(""))
             }
             randstr = StringGen.next(randstr)
         }
@@ -177,10 +177,10 @@ object Miner {
     
     
     def main(args: Array[String]) {
-        val chunk = 1000 //worker chunk size
-        val limit = 100000 //threshold
+        val chunk = 100000 //worker chunk size
+        val limit = 10000000 //threshold
         var zeroes = 1;  //leading zeroes
-        val workers = 10; //workers
+        val workers = 5; //workers
         var ipAddress = ""
         
         // exit if argument not passed as command line param
@@ -204,12 +204,13 @@ object Miner {
                    }
                   }""")))
                   
-                  val worker = remoteSystem.actorOf(Props(new WorkerActor()), name = "Worker")
+                  val worker = remoteSystem.actorOf(Props(new WorkerActor()), name = "Samantha")
                   val watcher = remoteSystem.actorOf(Props(new Watcher()), name = "Watcher")
 
                   watcher ! Watcher.WatchMe(worker)
 
-                  val master = remoteSystem.actorSelection("akka.tcp://MinerSystem@" + ipAddress + ":12000/user/ServerActor")
+                  val master = remoteSystem.actorSelection("akka.tcp://MinerSystem@" + ipAddress + ":12000/user/server")
+                  println("Successfully connected to server#####################################################")
                   master.tell(StartRemoteWorker, worker)
                   
                  case s: String =>
